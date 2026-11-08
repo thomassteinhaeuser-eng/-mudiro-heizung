@@ -1,0 +1,385 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#101827"><title>Terrassenheizung · MUDIRO V15</title><style>:root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#edf2fa;background:#0b1220}*{box-sizing:border-box}body{margin:0;padding:20px 14px 60px;max-width:740px;margin:auto}header{display:flex;justify-content:space-between;align-items:center;margin:12px 0 26px}h1{font-size:25px;margin:0}small,.muted{color:#9ba9bc}h2{font-size:18px;margin:0 0 12px}.chip{background:#1b2839;border:1px solid #324156;border-radius:20px;padding:7px 11px;color:#a4c5ef;font-size:12px}.panel{background:#151f2f;border:1px solid #2a384c;border-radius:18px;padding:18px;margin:12px 0}.stats{display:grid;grid-template-columns:1fr 1fr;gap:12px}.stat{background:#18273a;border-radius:14px;padding:16px}.num{font-size:28px;font-weight:700;margin-top:7px}.head{display:flex;justify-content:space-between;gap:10px;align-items:center}.pill{font-size:12px;border-radius:14px;padding:5px 9px;background:#263548;color:#bbc8d8}button{font:inherit;border:0;border-radius:12px;padding:12px 15px;color:white;background:#2969cc;cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}.secondary{background:#27384f}.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px}input{background:#111a29;border:1px solid #43516a;color:#edf2fa;border-radius:9px;padding:8px;width:100%;font:inherit}.item{border-top:1px solid #2b384c;margin-top:14px;padding-top:14px}.item:first-of-type{border:0;margin-top:0;padding-top:0}.deviceTitle{font-size:17px;font-weight:700;margin:0}.note{border-left:3px solid #779ddb;padding-left:12px;line-height:1.55;margin-top:18px}.mono{font-family:ui-monospace,monospace;word-break:break-word;color:#adc6e8;font-size:12px}footer{font-size:12px;color:#97a4b6;margin-top:20px}label{font-size:12px;color:#a8b6c8}.log{white-space:pre-wrap;max-height:190px;overflow:auto;font-family:ui-monospace,monospace;font-size:12px;color:#aabbd0} 
+.dashboard{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.heatcard{border:1px solid #304762;background:#111d2d;border-radius:15px;padding:13px 10px;min-width:0}
+.heatname{font-weight:700;font-size:15px;overflow-wrap:anywhere}.heatvalue{font-size:clamp(25px,7vw,36px);font-weight:750;margin:7px 0;letter-spacing:-1px}
+.heatmeta{font-size:12px;color:#b1c3d9;line-height:1.6}.heatstatus{font-size:11px;margin-top:8px;color:#98b8df}.warn{color:#ffc78d}.good{color:#a6e6c1}
+.autobox{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.autobox select{font:inherit;background:#111a29;border:1px solid #43516a;color:white;padding:10px;border-radius:9px}
+@media(max-width:400px){.dashboard{gap:6px}.heatcard{padding:10px 7px}.heatmeta{font-size:11px}.heatname{font-size:13px}}
+</style></head><body><header><div><small>MUDIRO · Handy-Web-App</small><h1>Meine Glasterrasse</h1></div><span class="chip" id="mode">Heizungszentrale V15</span></header><div class="stats"><div class="stat"><small>Heizungen verbunden</small><div class="num" id="count">0 / 3</div></div><div class="stat"><small>Terrassentemperatur</small><div class="num">– °C</div><small>Werte erst nach bestätigter Dekodierung</small></div></div><div class="panel" id="overviewPanel"><h2>Live-Übersicht · 3 Heizungen</h2><p class="muted" style="font-size:13px">Alle Werte stammen von der letzten tatsächlich empfangenen Bluetooth-Statusmeldung. Der Zeitstempel zeigt, wenn Daten älter sind.</p><div id="heaterDashboard" class="dashboard" aria-live="polite"></div><div class="actions"><button id="refreshOnce">Alle jetzt abfragen</button></div><div class="autobox" style="margin-top:12px"><button id="autoToggle" class="secondary">Automatik starten</button><label for="autoInterval">Pause zwischen Durchläufen</label><select id="autoInterval"><option value="30">30 Sekunden</option><option value="60" selected>60 Sekunden</option><option value="120">120 Sekunden</option></select></div><p class="muted" id="autoInfo" style="font-size:13px">Automatische Abfrage ist aus. Sie läuft nur bei geöffneter, sichtbarer Seite und wird beim Verlassen pausiert.</p></div><div class="panel"><h2>Meine Heizungen</h2><p class="muted">Tippe bei jeder Heizung auf „Verbinden“. Android Chrome fragt, welches Bluetooth-Gerät verwendet werden soll.</p><div class="actions"><button id="restore" class="secondary">Gespeicherte Geräte finden</button><button id="reconnect" class="secondary">Getrennte erneut verbinden</button></div><p class="muted" style="font-size:13px">Gerätezuordnung wird nur in diesem Browser gespeichert. Chrome benötigt weiterhin einmal deine Freigabe für jedes Bluetooth-Gerät.</p><div id="devices"></div></div><div class="panel"><h2>Protokoll-Erkennung</h2><p class="muted">Warm Drive / MUDIRO benötigt eine eigene Initialisierung. Diese Version verwendet nur die im Warm-Drive-Quellcode dokumentierten Leseabfragen und unterscheidet kompatible Geräte anhand des BLE-Namens. <strong>„Air Heater123“ ist nicht verifiziert.</strong></p><div id="protocol"></div></div><div class="panel"><h2>Bluetooth-Merkmale prüfen</h2><p class="muted">Prüft nur, ob FFF1/FFF2 direkt lesbar sind. Es wird nichts an die Heizung geschrieben, keine Leistung verändert und nichts gestartet.</p><div id="read-controls"></div></div><div class="panel"><h2>Empfangene Statusdaten</h2><p class="muted">FFF2-Statusmeldungen können jetzt dekodiert werden. Die Statusabfrage wird durch die Schaltfläche oder nach ausdrücklichem Einschalten der Automatik ausgelöst.</p><div id="telemetry"></div></div><div class="panel" id="status-panel"><h2>Live-Werte aus Warm Drive (V15)</h2><p class="muted">Nur für Geräte mit dem exakten Bluetooth-Namen <strong>Air Heater</strong>. Mit „Status abrufen“ werden nur dokumentierte Leseabfragen über FFF1 gesendet. V14 zeigt die Antwortformate und erlaubt einen eigenen Controller-Code pro Heizung. Es wird kein Code automatisch ausprobiert. <strong>Keine Start-/Stopp- oder Einstellbefehle.</strong> Bei „Air Heater123“ ist die Abfrage gesperrt. Die automatische Aktualisierung fragt kompatible Geräte nacheinander ab und verändert keine Heizstufe.</p><p class="muted">Jede Heizung kann einen eigenen Controller-Code haben. Werkswert: <strong>100000000</strong>. Die Eingaben werden nicht gespeichert, nicht ins Protokoll geschrieben und nicht automatisch ausprobiert. Nur ändern, wenn du den Code der jeweiligen Heizung kennst.</p><div id="statusControls"></div><div class="actions"><button id="statusAll" class="secondary">Status nacheinander abrufen</button></div><p id="statusNotice" class="muted">Noch keine aktive Statusabfrage durchgeführt. Jede Heizung zeigt ihren eigenen Ablauf.</p></div><div class="panel"><h2>Live-Bluetooth-Mitschnitt</h2>
+<p class="muted">Zeichnet vollständige FFF1-/FFF2-Benachrichtigungen auf, sofern die Heizung welche sendet. Funktioniert für alle drei verbundenen Geräte gleichzeitig. <strong>Aktive Leseabfragen erfolgen nach Tippen auf „Status abrufen“ oder bei bewusst eingeschalteter Automatik.</strong> Ohne Initialisierung durch Warm Drive bleiben die Meldungen möglicherweise bei 0.</p>
+<div class="actions"><button id="captureExport" class="secondary">Live-Mitschnitt speichern</button><button id="captureCopy" class="secondary">Live-Mitschnitt kopieren</button><button id="captureClear" class="secondary">Mitschnitt löschen</button></div>
+<p class="muted" id="captureSummary">Noch keine BLE-Meldungen.</p><div class="log" id="captureLog">Noch keine Daten empfangen.</div>
+</div><div class="panel"><h2>Warm-Drive-Aufnahme untersuchen</h2>
+<p class="muted">Mit einer Bluetooth-HCI-Aufzeichnung (btsnoop_hci.log) von deinem eigenen Android-Handy können wir nachvollziehen, welche Daten Warm Drive zur Heizung sendet. Die Datei wird <strong>nur auf deinem Handy</strong> analysiert und nicht hochgeladen. Diese Funktion sendet keinerlei Bluetooth-Befehle.</p>
+<input id="hciFile" type="file" accept=".log,.btsnoop,.bin,application/octet-stream" aria-label="Bluetooth-HCI-Datei auswählen">
+<div class="actions"><button id="analyze" class="secondary">Aufnahme analysieren</button><button id="copyframes" class="secondary">Befehlsliste kopieren</button></div>
+<p class="muted" id="hciStatus">Noch keine Aufzeichnung ausgewählt.</p><div class="mono" id="hciSummary" style="white-space:pre-wrap;margin:12px 0"></div>
+<div class="panel" style="margin-top:14px;background:#101b2a"><h2>Befehls-/Antwort-Paare (Offline)</h2><p class="muted">Fasst zeitlich aufeinanderfolgende ATT-Schreibbefehle und Antworten zusammen. Eine Zuordnung bedeutet noch nicht, dass der vollständige Befehl bekannt ist.</p><div id="pairsSummary" class="mono" style="white-space:pre-wrap">Noch keine Aufnahme ausgewertet.</div><div class="actions"><button id="pairsCopy" class="secondary">Paar-Statistik kopieren</button></div></div><div class="log" id="hciResult">Hier erscheinen ATT-Schreibbefehle, Antworten und die erkennbaren Präfixe. Android kann die Nutzdaten kürzen. Bitte keine Protokolldaten öffentlich auf GitHub hochladen.</div>
+</div><div class="panel"><div class="head"><h2>Bluetooth-Diagnose</h2><div class="actions" style="margin-top:0"><button class="secondary" id="copylog">Diagnose kopieren</button><button class="secondary" id="export">Protokoll speichern</button><button class="secondary" id="clear">Löschen</button></div></div><div id="log" class="log">Noch keine Verbindung versucht.</div></div><div class="note"><strong>Testversion 15: dokumentierte Warm-Drive-Leseabfragen und Statusanzeige; keine Brennersteuerung. </strong> Antworttypen und Antwortlängen werden je Heizung angezeigt. Befehls-/Antwort-Paare werden offline gezählt. Unvollständige Bytefolgen sind KEINE einsatzfertigen Heizungsbefehle. Statusabfrage stammt aus dem beigelegten Open-Source-Protokollcode. Diese Funktion verarbeitet keine anderen Dateien und steuert den Brenner nicht.  Drei Geräte unterscheiden, die exakte Warm-Drive-Gerätekennung prüfen, FFF2-Nachrichten überwachen und Diagnose als Textdatei speichern. FFF1 ist nach bisherigem Test ausschließlich zum Schreiben vorgesehen. <strong>Diese Version sendet ausschließlich nach Tippen auf „Status abrufen“ oder nach bewusstem Einschalten der Automatik dokumentierte Leseabfragen. Andere BLE-Schreibbefehle sind deaktiviert.</strong> Keine Heizungssteuerung und keine Änderung von Brennerparametern. Fehlen Empfangsdaten, ist das keine Fehlfunktion des Heizgeräts. Die dokumentierte Warm-Drive-Initialisierung läuft nur nach manueller Abfrage oder während bewusst eingeschalteter Automatik.</div><footer>Voraussetzungen: Android mit Chrome, Bluetooth eingeschaltet und die Seite über HTTPS geöffnet. Warm Drive vorher trennen/schließen; bitte keine Namen, MAC-Adressen oder Diagnosedateien öffentlich bei GitHub hochladen. Nicht von außerhalb des Heimnetzes ohne geeignete Absicherung bereitstellen. Die Heizung immer regulär mit Kühl-Nachlauf ausschalten.</footer><script>
+const FFF1='0000fff1-0000-1000-8000-00805f9b34fb';
+const FFF2='0000fff2-0000-1000-8000-00805f9b34fb';
+const FFF0='0000fff0-0000-1000-8000-00805f9b34fb';
+const names=['Links','Mitte','Rechts'];
+const connections=[null,null,null];
+const streams=[null,null,null];
+const samples=[null,null,null];
+const readReports=[null,null,null];
+const warmState=[null,null,null]; const warmBusy=[false,false,false]; const warmWait=[null,null,null];
+const pinInputs=['100000000','100000000','100000000'];
+const warmProgress=['Noch nicht abgefragt','Noch nicht abgefragt','Noch nicht abgefragt'];
+const warmErrors=['','',''];
+const warmRxDetails=[[],[],[]];
+const warmFrameCount=[{A5:0,C5:0,D5:0,S5:0,other:0},{A5:0,C5:0,D5:0,S5:0,other:0},{A5:0,C5:0,D5:0,S5:0,other:0}];
+let autoEnabled=false,autoRunning=false,autoTimer=null,autoGeneration=0;
+function updateDashboard(){
+ const wrap=document.getElementById('heaterDashboard');if(!wrap)return;
+ wrap.innerHTML=names.map((name,i)=>{
+  const d=connections[i],w=warmState[i],linked=!!d?.gatt?.connected,valid=!!w?.status;
+  const age=valid&&w.receivedAt?Math.floor((Date.now()-w.receivedAt)/1000):null;
+  const old=age!==null&&age>180;
+  const state= !linked?'Nicht verbunden':warmBusy[i]?'Abfrage läuft':valid?'Verbunden':'Warte auf Daten';
+  const f=valid?warmFmt(w,w.room):'–';
+  const target=valid?warmFmt(w,w.target):'–';
+  const last=valid?(w.when||'–'):'Noch kein Messwert';
+  return `<div class="heatcard"><div class="heatname">${html(name)}</div><div class="heatvalue">${html(f)}</div><div class="heatmeta">Soll: ${html(target)}<br>Spannung: ${valid?html(w.voltage+' V'):'–'}<br>Lüfter: ${valid?html(w.rpm+' U/min'):'–'}<br>${valid?html(warmStateWords[w.state]||'Status '+w.state):'Keine Statusmeldung'}</div><div class="heatstatus ${!linked||old?'warn':'good'}">${html(state)}<br>${html(last)}${old?' · Wert veraltet':''}</div></div>`
+ }).join('');
+}
+function scheduleAuto(delay){clearTimeout(autoTimer);if(autoEnabled)autoTimer=setTimeout(autoCycle,delay)}
+async function autoCycle(){
+ if(!autoEnabled||autoRunning)return;
+ if(document.hidden){document.getElementById('autoInfo').textContent='Pausiert: Seite nicht sichtbar. Beim Zurückkehren geht es weiter.';return;}
+ autoRunning=true;document.getElementById('autoInfo').textContent='Automatik: Heizungen werden nacheinander abgefragt …';
+ try{for(let i=0;i<3;i++){
+   if(!autoEnabled||document.hidden)break;
+   if(connections[i]?.gatt?.connected&&connections[i].name==='Air Heater')await warmRead(i);
+ }}finally{autoRunning=false;updateDashboard();if(autoEnabled){
+  if(document.hidden){document.getElementById('autoInfo').textContent='Pausiert: Seite nicht sichtbar.'}
+  else{const secs=Number(document.getElementById('autoInterval').value)||60;document.getElementById('autoInfo').textContent='Letzter Durchlauf beendet um '+new Date().toLocaleTimeString('de-DE')+' · Nächster Start frühestens in '+secs+' Sekunden.';scheduleAuto(secs*1000)}
+ }}
+}
+document.getElementById('autoToggle').onclick=()=>{
+ autoEnabled=!autoEnabled;document.getElementById('autoToggle').textContent=autoEnabled?'Automatik stoppen':'Automatik starten';
+ document.getElementById('autoInfo').textContent=autoEnabled?'Automatische Statusabfrage eingeschaltet.':'Automatische Statusabfrage ausgeschaltet.';
+ if(autoEnabled&&!autoRunning)scheduleAuto(200);else if(!autoEnabled)clearTimeout(autoTimer);
+};
+document.getElementById('autoInterval').onchange=()=>{if(autoEnabled&&!autoRunning)scheduleAuto(Number(document.getElementById('autoInterval').value)*1000)};
+document.addEventListener('visibilitychange',()=>{
+ if(document.hidden){clearTimeout(autoTimer);if(autoEnabled)document.getElementById('autoInfo').textContent='Pausiert: Seite nicht sichtbar.'}
+ else if(autoEnabled&&!autoRunning)scheduleAuto(1000);
+ updateDashboard();
+});
+setInterval(()=>{if(!document.hidden)updateDashboard()},30000);
+const warmStateWords={0:'Aus',1:'Selbsttest',2:'Heizbetrieb',3:'Heizbetrieb',4:'Heizbetrieb',5:'Heizbetrieb',6:'Abkühlen',7:'Abkühlen',8:'Abkühlen',160:'Bereitschaft',170:'Reinigung',171:'Lüften'};
+function warmFrame(i,bytes){
+ const typ=bytes.length?bytes[0].toString(16).padStart(2,'0').toUpperCase():'leer';
+ const b2=bytes.length>1?bytes[1].toString(16).padStart(2,'0').toUpperCase():'--';
+ const line=new Date().toLocaleTimeString('de-DE')+' '+typ+' '+b2+' · '+bytes.length+' Byte · '+(bytes.length>1&&bytes[1]===bytes.length-2?'Länge OK':'Länge abweichend');
+ warmRxDetails[i].push(line);if(warmRxDetails[i].length>12)warmRxDetails[i].shift();
+ if(bytes.length<4||bytes[1]!==bytes.length-2){warmFrameCount[i].other++;warmShow();return;}
+ const w=warmState[i]||(warmState[i]={});
+ const dv=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
+ let kind='other';
+ if(bytes[0]===0xA5&&bytes.length>=8){kind='A5';w.run=bytes[4]||1;w.target=bytes[5];w.alt=(bytes[6]<<8)|bytes[7];w.settings=true;}
+ if(bytes[0]===0x5C&&bytes.length===24&&bytes[1]===0x16){kind='C5';w.config=true;w.type=bytes[2];w.low=bytes[4];w.high=bytes[5];}
+ if(bytes[0]===0x5D&&bytes.length>=21){kind='D5';w.fahrenheit=bytes[17]===2;w.board=true;}
+ if(bytes[0]===0x5A&&bytes.length===39&&bytes[1]===0x25){
+  kind='S5';w.voltage=dv.getUint16(5,false)/10;w.rpm=dv.getUint16(7,false);w.fire=dv.getInt16(18,false);
+  w.room=bytes[35];w.target=bytes[15];w.level=bytes[16];w.alt=dv.getUint16(32,false);w.run=bytes[34];
+  w.state=bytes[3];w.when=new Date().toLocaleTimeString('de-DE');w.receivedAt=Date.now();w.status=true;
+ }
+ warmFrameCount[i][kind]++;
+ const waiter=warmWait[i];if(waiter&&waiter.kind===kind){warmWait[i]=null;waiter.resolve(true);}
+ warmShow();
+}
+function warmFmt(w,v){return v===undefined?'–':(w.fahrenheit?Math.trunc(v*9/5+32)+' °F':v+' °C')}
+function warmShow(){
+ updateDashboard();const node=document.getElementById('statusControls');if(!node)return;
+ node.innerHTML=names.map((n,i)=>{
+  const d=connections[i],w=warmState[i],ok=d?.gatt?.connected&&d.name==='Air Heater';
+  const result=w?.status?`Letzte Werte: ${w.when} · ${warmStateWords[w.state]||'Status '+w.state}\nRaum: ${warmFmt(w,w.room)} · Soll: ${warmFmt(w,w.target)}\nSpannung: ${w.voltage} V · Lüfter: ${w.rpm} U/min\nBrennertemperatur: ${warmFmt(w,w.fire)} · Stufe: ${w.level}\nModus: ${w.run===1?'Manuell':w.run===2?'Automatik':'Unbekannt'}`:'Noch keine vollständige Statusmeldung.';
+  const counts=warmFrameCount[i];
+  return `<div class="item"><div class="head"><strong>${html(n)}</strong><button id="status${i}" ${ok&&!warmBusy[i]?'':'disabled'}>${warmBusy[i]?'Abfrage läuft …':'Status abrufen'}</button></div><label for="pin${i}">Controller-Code ${html(n)} (nur für diese Heizung)</label><input type="password" id="pin${i}" inputmode="numeric" maxlength="10" autocomplete="off" value="100000000" aria-label="Controller-Code ${html(n)}" style="margin:6px 0 10px"><div class="mono" style="white-space:pre-wrap">${!d?.gatt?.connected?'Nicht verbunden':d.name!=='Air Heater'?'Nicht freigegeben: Bluetooth-Name ist nicht exakt Air Heater':`${html(warmProgress[i])}${warmErrors[i]?'\nFehler: '+html(warmErrors[i]):''}\n${result}\nEmpfang: A5=${counts.A5}, 5C=${counts.C5}, 5D=${counts.D5}, 5A=${counts.S5}, sonstige=${counts.other}\nLetzte Antworten:\n${html(warmRxDetails[i].slice(-6).join("\n")||"Noch keine")}`}</div></div>`;
+ }).join('');
+ names.forEach((_,i)=>{document.getElementById('status'+i).onclick=()=>warmRead(i);const inp=document.getElementById('pin'+i);inp.value=pinInputs[i];inp.oninput=()=>{pinInputs[i]=inp.value};inp.disabled=warmBusy[i]});
+}
+function modbus16(bytes){let crc=0xFFFF;for(const b of bytes){crc^=b;for(let k=0;k<8;k++)crc=crc&1?(crc>>>1)^0xA001:crc>>>1;}return [(crc>>>8)&255,crc&255]}
+function readEnvelope(opcode,pass){const now=Math.floor(Date.now()/1000)-new Date().getTimezoneOffset()*60;const b=[0x29,0x0D,opcode,0,(now>>>24)&255,(now>>>16)&255,(now>>>8)&255,now&255,(pass>>>24)&255,(pass>>>16)&255,(pass>>>8)&255,pass&255,1];return Uint8Array.from([...b,...modbus16(b)])}
+function pollEnvelope(w){const run=w.run,target=w.target,alt=w.alt;if(!Number.isInteger(run)||!Number.isInteger(target)||!Number.isInteger(alt)||run<0||run>255||target<0||target>255||alt<0||alt>65535)throw Error('Startdaten unvollständig. Keine Statusabfrage.');const b=[0xA5,0x09,0x01,0x00,run,target,(alt>>>8)&255,alt&255,1];return Uint8Array.from([...b,...modbus16(b)])}
+function awaitWarm(i,kind,ms){
+ if(warmWait[i]){warmWait[i].resolve(false);warmWait[i]=null;}
+ return new Promise(resolve=>{
+  let timer;
+  const done=v=>{clearTimeout(timer);resolve(v)};
+  warmWait[i]={kind,resolve:done};
+  timer=setTimeout(()=>{if(warmWait[i]?.resolve===done){warmWait[i]=null;done(false)}},ms);
+ });
+}
+function reportWarm(i,status){warmProgress[i]=status;warmShow();log(names[i]+': '+status)}
+// A single outstanding GATT request in the entire page; does not drop earlier valid status values.
+let warmQueue=Promise.resolve();
+async function warmRead(i){
+ const d=connections[i];if(warmBusy[i]||!d?.gatt?.connected||d.name!=='Air Heater')return;
+ const raw=pinInputs[i].trim();if(!/^\d{1,10}$/.test(raw)||Number(raw)>2147483647){alert('Bitte gültigen Controller-Code eingeben.');return;}
+ const pass=Number(raw);
+ log(names[i]+': Leseabfrage gestartet, Controller-Code absichtlich nicht protokolliert.');
+ warmBusy[i]=true;warmErrors[i]='';reportWarm(i,'In Warteschlange …');
+ const work=async()=>{
+  try{
+   if(!d.gatt?.connected||connections[i]!==d)throw Error('Bluetooth-Verbindung unterbrochen oder Gerätezuordnung geändert.');
+   reportWarm(i,'FFF0/FFF1 öffnen …');
+   const service=await d.gatt.getPrimaryService(FFF0);const write=await service.getCharacteristic(FFF1);
+   if(notifyStatus[i]!=='aktiv')throw Error('FFF2-Benachrichtigungen nicht aktiv. Neu verbinden.');
+   const send=async arr=>{if(write.properties.writeWithoutResponse)await write.writeValueWithoutResponse(arr);else if(write.properties.write)await write.writeValueWithResponse(arr);else throw Error('FFF1 ist nicht beschreibbar')};
+   const step=async(kind,label,bytes,ms=10000)=>{
+    reportWarm(i,label+' – warte auf Antwort …');
+    const promise=awaitWarm(i,kind,ms);
+    try{await send(bytes)}catch(err){if(warmWait[i]){warmWait[i].resolve(false);warmWait[i]=null}throw err}
+    if(!await promise)throw Error(label+': keine Antwort innerhalb von '+(ms/1000)+' Sekunden');
+    reportWarm(i,label+' – Antwort empfangen');
+   };
+   // Do not clear w.status: an old but correctly timestamped measurement is better than a blank card.
+   const w=warmState[i]||(warmState[i]={});
+   w.settings=false;w.config=false;w.board=false;
+   warmRxDetails[i].length=0;
+   await step('A5','1/4 Startdaten',readEnvelope(0xFF,0));
+   await step('C5','2/4 Konfiguration',readEnvelope(0x5C,pass));
+   reportWarm(i,'3/4 Geräteinfo – optional …');
+   const board=awaitWarm(i,'D5',3000);
+   await send(readEnvelope(0x5D,pass));
+   const boardFound=await board;
+   reportWarm(i,'3/4 Geräteinfo '+(boardFound?'empfangen':'ohne Antwort (optional)'));
+   // Ensure a prior status cannot satisfy a new request: wait specifically for the next S5 frame.
+   await step('S5','4/4 Status',pollEnvelope(w));
+   reportWarm(i,'Fertig: Status erfolgreich aktualisiert');
+   document.getElementById('statusNotice').textContent=names[i]+': Status erfolgreich aktualisiert.';
+  }catch(e){
+   warmErrors[i]=String(e.message||e);
+   reportWarm(i,'Abfrage beendet – bitte Fehlermeldung prüfen');
+   document.getElementById('statusNotice').textContent=names[i]+': '+warmErrors[i];
+  }finally{warmBusy[i]=false;warmShow()}
+ };
+ // Queue work across slots, without rejecting future operations after one error.
+ const next=warmQueue.then(work,work);warmQueue=next.catch(()=>{});return next;
+}
+async function readAllOnce(){for(let i=0;i<3;i++)if(connections[i]?.gatt?.connected&&connections[i].name==='Air Heater')await warmRead(i)}
+document.getElementById('statusAll').onclick=readAllOnce;
+document.getElementById('refreshOnce').onclick=readAllOnce;
+const received=[0,0,0];
+const liveFrames=[]; // ephemeral in browser memory only, no storage, no auto-upload
+function addLiveFrame(i,via,bytes){
+ const item={time:new Date().toISOString(),heater:names[i],via,bytes:bytes.length,hex:hexbytes(bytes)};
+ liveFrames.push(item);if(liveFrames.length>1500)liveFrames.shift();
+ const recent=liveFrames.slice(-45).reverse();
+ document.getElementById('captureSummary').textContent=`${liveFrames.length} empfangene Datensätze (${received.map((n,i)=>names[i]+': '+n).join(' · ')})`;
+ document.getElementById('captureLog').textContent=recent.map(r=>`${r.time.slice(11,19)} ${r.heater} ${r.via} (${r.bytes} Bytes): ${r.hex}`).join('\n')||'Noch keine Daten empfangen.';
+}
+function captureText(){return ['MUDIRO V15 - BLE-Live-Mitschnitt',
+ 'Nur die dokumentierten Status-Leseabfragen werden auf Nutzerwunsch gesendet. Rohdaten sind separat aufgezeichnet.',
+ 'Export enthält keine Geräte-IDs oder MAC-Adressen.','',
+ ...liveFrames.map(r=>`${r.time} | ${r.heater} | ${r.via} | ${r.bytes} Bytes | ${r.hex}`)].join('\n')}
+function saveCapture(){const a=document.createElement('a');const url=URL.createObjectURL(new Blob([captureText()],{type:'text/plain;charset=utf-8'}));a.href=url;a.download='mudiro-v15-live-mitschnitt.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
+document.getElementById('captureExport').onclick=saveCapture;
+document.getElementById('captureCopy').onclick=async()=>{try{await navigator.clipboard.writeText(captureText());log('Live-Mitschnitt kopiert.')}catch(e){log('Kopieren nicht möglich: '+e.message)}};
+document.getElementById('captureClear').onclick=()=>{liveFrames.length=0;document.getElementById('captureLog').textContent='Mitschnitt gelöscht.';document.getElementById('captureSummary').textContent='0 gespeicherte Datensätze (neue Meldungen werden weiter aufgenommen).';};
+const notifyStatus=['nicht verbunden','nicht verbunden','nicht verbunden'];
+const logNode=document.getElementById('log');
+let history=[];
+const log=s=>{history.push(new Date().toLocaleTimeString('de-DE')+'  '+s);history=history.slice(-100);logNode.textContent=history.join('\n')};
+const html=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// device.id is the browser-provided origin-scoped identifier; don't use its name for uniqueness.
+function sameDevice(a,b){return !!a&&!!b&&a.id===b.id}
+function count(){return connections.filter(d=>d?.gatt?.connected).length}
+function render(){
+ document.getElementById('count').textContent=count()+' / 3';warmShow();
+ document.getElementById('protocol').innerHTML=names.map((name,i)=>{const d=connections[i];const verdict=!d?'Noch nicht ausgewählt':d.name==='Air Heater'?'Warm Drive möglich (FFF0 prüfen)':'Unbestätigtes Modell: '+html(d.name||'unbekannt');return `<div class="item"><strong>${html(name)}</strong><div class="mono">${verdict}</div></div>`}).join('');
+ document.getElementById('read-controls').innerHTML=names.map((name,i)=>`<div class="item"><div class="head"><strong>${html(name)}</strong><button id="read${i}" ${connections[i]?.gatt?.connected?'':'disabled'}>FFF1/FFF2 lesen</button></div><div class="mono" style="white-space:pre-wrap">${readReports[i]?html(readReports[i]):'Noch nicht geprüft'}</div></div>`).join('');
+ names.forEach((_,i)=>{document.getElementById('read'+i).onclick=()=>readCharacteristics(i)});
+ document.getElementById('telemetry').innerHTML=names.map((name,i)=>{const s=samples[i];return `<div class="item"><strong>${html(name)}</strong><div class="mono">${s?`Empfangen: ${html(s.when)} · ${html(s.via)}<br>HEX: ${html(s.hex)}`:'Noch keine Daten empfangen · '+received[i]+' Meldungen · FFF2: '+html(notifyStatus[i])}</div></div>`}).join('');
+ document.getElementById('devices').innerHTML=names.map((name,i)=>{
+   const d=connections[i];const active=!!d?.gatt?.connected;
+   return `<div class="item"><div class="head"><div style="flex:1"><label>Heizung ${i+1}</label><input aria-label="Name Heizung ${i+1}" id="name${i}" value="${html(name)}" /></div><span class="pill">${active?'Verbunden':'Nicht verbunden'}</span></div><div class="actions"><button id="connect${i}">${active?'Andere wählen':'Bluetooth verbinden'}</button><button class="secondary" id="disconnect${i}" ${active?'':'disabled'}>Trennen</button></div><div class="mono">${d?html(d.name||'Air Heater')+' · Kennung '+html(d.id.slice(0,8))+'…':'Noch kein Bluetooth-Gerät gewählt'}</div></div>`
+ }).join('');
+ names.forEach((_,i)=>{
+   document.getElementById('connect'+i).onclick=()=>connect(i);
+   document.getElementById('disconnect'+i).onclick=()=>disconnect(i);
+   document.getElementById('name'+i).onchange=e=>{names[i]=e.target.value.trim().slice(0,32)||`Heizung ${i+1}`;localStorage.setItem('mudiro-names',JSON.stringify(names));render()};
+ });
+}
+function stopStream(i){
+ const s=streams[i];streams[i]=null;
+ if(s){for(const item of s){try{item.char.removeEventListener('characteristicvaluechanged',item.listener);item.char.stopNotifications().catch(()=>{});}catch(e){}}}
+}
+async function listenToStatus(server,i,device){
+ stopStream(i); const active=[];
+ try{
+  const service=await server.getPrimaryService(FFF0);
+  for(const uuid of [FFF1,FFF2]){
+   try{
+    const c=await service.getCharacteristic(uuid);
+    if(!c.properties.notify&&!c.properties.indicate){log(`Heizung ${i+1}: ${uuid.slice(4,8)} keine Notifications`);continue}
+    const listener=e=>{
+      if(connections[i]!==device)return;
+      const data=new Uint8Array(e.target.value.buffer,e.target.value.byteOffset,e.target.value.byteLength);
+      const hex=Array.from(data,x=>x.toString(16).padStart(2,'0')).join(' ').toUpperCase();
+      samples[i]={when:new Date().toLocaleTimeString('de-DE'),via:uuid.slice(4,8).toUpperCase(),hex};received[i]++;addLiveFrame(i,uuid.slice(4,8).toUpperCase(),data);if(uuid===FFF2)warmFrame(i,data);
+      log(`Heizung ${i+1}: ${uuid.slice(4,8).toUpperCase()} ${hex.slice(0,100)}${hex.length>100?'…':''}`);
+      render();
+    };
+    await c.startNotifications();c.addEventListener('characteristicvaluechanged',listener);
+    active.push({char:c,listener});if(uuid===FFF2)notifyStatus[i]='aktiv';log(`Heizung ${i+1}: Status-Empfang über ${uuid.slice(4,8).toUpperCase()} aktiviert`);
+   }catch(e){if(uuid===FFF2)notifyStatus[i]='Fehler: '+(e.message||e);log(`Heizung ${i+1}: ${uuid.slice(4,8).toUpperCase()} Empfang nicht möglich: ${e.message||e}`)}
+  }
+ }catch(e){log(`Heizung ${i+1}: Status-Empfang nicht möglich: ${e.message||e}`)}
+ streams[i]=active;
+ render();
+}
+async function readCharacteristics(i){
+ const d=connections[i];if(!d?.gatt?.connected){log(`Heizung ${i+1}: nicht verbunden`);return}
+ const lines=[];let service;
+ try{service=await d.gatt.getPrimaryService(FFF0)}catch(e){lines.push('FFF0 nicht verfügbar: '+(e.message||e));readReports[i]=lines.join('\n');render();return}
+ for(const uuid of [FFF1,FFF2]){
+  const short=uuid.slice(4,8).toUpperCase();
+  try{
+   const c=await service.getCharacteristic(uuid);
+   const capabilities=['read','write','writeWithoutResponse','notify','indicate'].filter(k=>c.properties[k]);
+   lines.push(short+' Eigenschaften: '+(capabilities.join(', ')||'keine'));
+   if(c.properties.read){
+    try{const v=await c.readValue();const data=new Uint8Array(v.buffer,v.byteOffset,v.byteLength);const hex=Array.from(data,x=>x.toString(16).padStart(2,'0')).join(' ').toUpperCase();lines.push(short+' HEX: '+(hex||'(leer)'));if(hex){samples[i]={when:new Date().toLocaleTimeString('de-DE'),via:short+' READ',hex};addLiveFrame(i,short+' READ',data)}}
+    catch(e){lines.push(short+' Lesen fehlgeschlagen: '+(e.message||e))}
+   }else{lines.push(short+' ist nicht direkt lesbar (kein READ-Merkmal)')}
+  }catch(e){lines.push(short+' nicht verfügbar: '+(e.message||e))}
+ }
+ readReports[i]=lines.join('\n');log(`Heizung ${i+1}: Leseprüfung beendet (kein Schreibbefehl)`);render();
+}
+function disconnect(i){
+ const d=connections[i];stopStream(i);connections[i]=null;samples[i]=null;received[i]=0;notifyStatus[i]='nicht verbunden';readReports[i]=null;
+ // Keep shared GATT connection alive if old versions had placed this device in another slot.
+ if(d&&!connections.some(other=>sameDevice(d,other))&&d.gatt?.connected)d.gatt.disconnect();
+ log(`Heizung ${i+1} getrennt`);render();
+}
+async function attachDevice(i,device){
+ const existing=connections.findIndex((d,j)=>j!==i&&sameDevice(d,device));
+ if(existing!==-1){log(`DOPPELT: Dieses Gerät ist bereits als ${names[existing]} zugeordnet.`);return false}
+ const previous=connections[i];
+ if(previous&&!sameDevice(previous,device)){stopStream(i);if(previous.gatt?.connected)previous.gatt.disconnect();warmState[i]=null;samples[i]=null;received[i]=0;notifyStatus[i]='nicht verbunden';readReports[i]=null;}
+ connections[i]=device;
+ try{
+  let server;
+  for(let attempt=1;attempt<=2;attempt++){
+   try{server=await device.gatt.connect();break}catch(e){log(`Heizung ${i+1}: Verbindung ${attempt}/2 fehlgeschlagen: ${e.message||e}`);if(attempt===2)throw e}
+  }
+  if(device.name!=='Air Heater')log(`Hinweis: ${device.name||'ohne Namen'} ist nicht die exakt verifizierte Warm-Drive-Kennung.`);
+  if(!device._mudiroListener){device.addEventListener('gattserverdisconnected',()=>{const slot=connections.findIndex(x=>sameDevice(x,device));if(slot!==-1){stopStream(slot);notifyStatus[slot]='getrennt';log(`Heizung ${slot+1}: Verbindung getrennt`);render()}});device._mudiroListener=true}
+  log(`Heizung ${i+1}: ${device.name||'Unbekannt'} verbunden (Kennung ${device.id.slice(0,8)}…)`);
+  localStorage.setItem('mudiro-device-ids-v10',JSON.stringify(connections.map(d=>d?.id||null)));
+  try{const svc=await server.getPrimaryService(FFF0);const chars=await svc.getCharacteristics();log(`Heizung ${i+1}: FFF0-Dienst und ${chars.length} Merkmale gefunden`)}catch(e){log(`Heizung ${i+1}: FFF0 nicht lesbar: ${e.message||e}`)}
+  await listenToStatus(server,i,device);render();return true;
+ }catch(e){log(`Heizung ${i+1}: Verbindung fehlgeschlagen: ${e.message||e}`);render();return false}
+}
+async function connect(i){
+ if(!navigator.bluetooth){log('Web Bluetooth nicht verfügbar: Chrome auf Android über HTTPS verwenden.');return}
+ try{log(`Bluetooth-Auswahl für Heizung ${i+1}…`);const dev=await navigator.bluetooth.requestDevice({acceptAllDevices:true,optionalServices:[FFF0]});await attachDevice(i,dev)}catch(e){log(`Bluetooth-Auswahl: ${e.message||e}`)}
+}
+async function knownDevices(){
+ if(!navigator.bluetooth?.getDevices){log('Dieser Browser unterstützt getDevices() nicht. Geräte wie bisher manuell verbinden.');return []}
+ try{return await navigator.bluetooth.getDevices()}catch(e){log(`Gespeicherte Geräte: ${e.message||e}`);return []}
+}
+document.getElementById('restore').onclick=async()=>{
+ const devices=await knownDevices();let ids=[];try{ids=JSON.parse(localStorage.getItem('mudiro-device-ids-v10')||'[]')}catch{}
+ let matches=0;
+ for(let i=0;i<3;i++){const dev=devices.find(d=>d.id===ids[i]);if(dev){connections[i]=dev;matches++}}
+ log(`${devices.length} freigegebene Bluetooth-Geräte, ${matches} zuvor zugeordnet. Ohne Zuordnung bitte wie bisher einzeln verbinden.`);render();
+};
+document.getElementById('reconnect').onclick=async()=>{
+ const devices=await knownDevices();let ids=[];try{ids=JSON.parse(localStorage.getItem('mudiro-device-ids-v10')||'[]')}catch{}
+ for(let i=0;i<3;i++){
+  const d=connections[i]||devices.find(x=>x.id===ids[i]);
+  if(d&&!d.gatt?.connected)await attachDevice(i,d);
+ }
+ render();
+};
+try{JSON.parse(localStorage.getItem('mudiro-names')||'[]').forEach((n,i)=>{if(i<3&&typeof n==='string')names[i]=n})}catch{}
+document.getElementById('export').onclick=()=>{const body=['MUDIRO V15',...names.map((n,i)=>`${n}: ${connections[i]?.name||'nicht verbunden'}, id=${connections[i]?.id||'–'}, notifications=${notifyStatus[i]}, empfangen=${received[i]}`),'',...history].join('\n');const blob=new Blob([body],{type:'text/plain;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mudiro-diagnose.txt';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000)};
+document.getElementById('clear').onclick=()=>{history=[];logNode.textContent='Protokoll gelöscht.'};
+document.getElementById('copylog').onclick=async()=>{const lines=['MUDIRO Web-App V14 Diagnose',...names.map((n,i)=>`${n}: ${connections[i]?.name||'kein Gerät'} | verbunden=${!!connections[i]?.gatt?.connected} | Meldungen=${received[i]} | FFF2=${notifyStatus[i]}`),'',...history];try{await navigator.clipboard.writeText(lines.join('\n'));log('Diagnose in Zwischenablage kopiert.')}catch(e){log('Kopieren nicht möglich: '+(e.message||e))}};
+
+// Offline ATT packet inspector. Handles basic HCI ACL and L2CAP ATT packets.
+// No uploads, no heater commands. No automatic decoding of unknown payloads.
+let extractedFrames=[];
+const hexbytes=b=>Array.from(b,x=>x.toString(16).padStart(2,'0')).join(' ').toUpperCase();
+function parseBtsnoop(buffer){
+ const raw=new Uint8Array(buffer),dv=new DataView(buffer),out=[];
+ if(raw.length<16||String.fromCharCode(...raw.slice(0,8))!=='btsnoop\0')throw Error('Keine gültige btsnoop-Datei (Signatur fehlt).');
+ let pos=16,records=0,acl=0,truncated=0;
+ while(pos+24<=raw.length){
+  const original=dv.getUint32(pos),included=dv.getUint32(pos+4),flags=dv.getUint32(pos+8);pos+=24;
+  if(included>10000000||pos+included>raw.length)break;
+  const b=raw.subarray(pos,pos+included);pos+=included;records++;
+  // Android H4: 0x02 marks ACL. The capture may truncate packets deliberately.
+  if(b.length<10||b[0]!==0x02)continue;
+  const off=1,handleAndFlags=b[off]|b[off+1]<<8,handle=handleAndFlags&0x0fff;
+  const pbFlag=(handleAndFlags>>12)&3;
+  if(pbFlag===1)continue; // continuation frame; no independent ATT header
+  const aclLength=b[off+2]|b[off+3]<<8;
+  const l2len=b[off+4]|b[off+5]<<8,cid=b[off+6]|b[off+7]<<8;
+  if(aclLength<4||cid!==4)continue;
+  acl++;
+  if(b.length<off+8+l2len||included<original)truncated++;
+  const payload=b.subarray(off+8);
+  if(!payload.length)continue;
+  const op=payload[0];
+  if(![0x12,0x52,0x1b,0x1d,0x0b,0x13,0x01,0x09,0x0d].includes(op))continue;
+  let attr='–',data=payload.subarray(1);
+  if([0x12,0x52,0x1b,0x1d,0x09].includes(op)&&payload.length>=3){attr='0x'+(payload[1]|payload[2]<<8).toString(16).padStart(4,'0');data=payload.subarray(3)}
+  const label=({18:'WRITE_REQ',82:'WRITE_CMD',27:'NOTIFY',29:'INDICATE',11:'READ_REPLY',19:'WRITE_REPLY',1:'ERROR',9:'FIND_REPLY',13:'READ_BLOB_REPLY'})[op]||'OTHER';
+  out.push({n:records,handle,dir:(flags&1)?'Gerät → Handy':'Handy → Gerät',label,attr,hex:hexbytes(data),short:b.length<off+8+l2len});
+  if(out.length>=5000)break;
+ }
+ return {records,acl,truncated,out};
+}
+// Group adjacent writes and notifications on the same HCI connection handle.
+// This is a heuristic for offline analysis ONLY; shortened prefixes are not commands.
+let latestPairsText='';
+function pairOverview(rows){
+ const pending=new Map(), counts=new Map();let paired=0,unpairedResponses=0;
+ for(const f of rows){
+   if(f.label==='WRITE_CMD'||f.label==='WRITE_REQ'){
+      const p=f.hex.split(' ').slice(0,3).join(' ')||'kein Nutzdaten-Praefix';
+      pending.set(f.handle,p);
+   }else if(f.label==='NOTIFY'||f.label==='INDICATE'){
+      const result=f.hex.split(' ').slice(0,3).join(' ')||'kein Nutzdaten-Praefix';
+      if(!pending.has(f.handle)){unpairedResponses++;continue}
+      const p=pending.get(f.handle);pending.delete(f.handle);paired++;
+      const key=p+'  ->  '+result;counts.set(key,(counts.get(key)||0)+1);
+   }
+ }
+ const ranked=[...counts.entries()].sort((a,b)=>b[1]-a[1]);
+ return 'Erkannte zeitliche Paare: '+paired+'\nAntworten ohne direktes Schreibpaar: '+unpairedResponses+'\nOffene Schreibvorgänge: '+pending.size+'\n\nHäufigste Präfix-Paare (unvollständig):\n'+ranked.slice(0,12).map(([s,n])=>n+'×  '+s).join('\n')+'\n\nHinweis: Die Aufzeichnung ist gekürzt. Keine dieser Bytefolgen ist als vollständiger Statusbefehl bestätigt.';
+}
+function hciSummary(rows){
+ const groups=new Map();
+ for(const r of rows){const key=r.dir+' | '+r.label+' | '+r.attr+' | '+(r.hex||'(leer)');groups.set(key,(groups.get(key)||0)+1)}
+ return Array.from(groups.entries()).sort((a,b)=>b[1]-a[1]).slice(0,16).map(([key,n])=>`${n}× ${key}`).join('\n');
+}
+document.getElementById('analyze').onclick=async()=>{
+ const f=document.getElementById('hciFile').files?.[0];const status=document.getElementById('hciStatus'),result=document.getElementById('hciResult');
+ if(!f){status.textContent='Bitte zuerst eine btsnoop_hci.log-Datei auswählen.';return}
+ if(f.size>30*1024*1024){status.textContent='Datei zu groß (maximal 30 MB).';return}
+ try{
+  const parsed=parseBtsnoop(await f.arrayBuffer());extractedFrames=parsed.out;
+  status.textContent=`${parsed.records} HCI-Einträge, ${parsed.acl} ACL-Pakete, ${parsed.out.length} ATT-Datensätze, ${parsed.truncated} gekürzte ACL-Pakete. Nur lokal analysiert.`;
+  latestPairsText=pairOverview(parsed.out);document.getElementById('pairsSummary').textContent=latestPairsText;
+  document.getElementById('hciSummary').textContent='HÄUFIGSTE NACHRICHTENANFÄNGE (gekürzt ≠ vollständiger Befehl):\n'+hciSummary(parsed.out);
+  result.textContent=parsed.out.length?parsed.out.slice(0,150).map(x=>`${x.n}: ${x.dir} | ${x.label} | ${x.attr} | ${x.hex}${x.short?' [GEKÜRZT]':''}`).join('\n'):'Keine auswertbaren ATT-Pakete. Bluetooth-Aufzeichnung ggf. leer, komprimiert oder fragmentiert.';
+ }catch(e){status.textContent='Fehler: '+(e.message||e);result.textContent='Die Datei wurde nicht hochgeladen.'}
+};
+document.getElementById('pairsCopy').onclick=async()=>{if(!latestPairsText)return;try{await navigator.clipboard.writeText(latestPairsText);document.getElementById('hciStatus').textContent='Paar-Statistik kopiert (nur Präfixe).'}catch(e){document.getElementById('hciStatus').textContent='Kopieren nicht möglich.'}};
+document.getElementById('copyframes').onclick=async()=>{
+ if(!extractedFrames.length){document.getElementById('hciStatus').textContent='Noch keine Daten zum Kopieren.';return}
+ const lines=extractedFrames.map(x=>`${x.n}: ${x.dir} | ${x.label} | ${x.attr} | ${x.hex}${x.short?' [GEKÜRZT]':''}`);
+ try{await navigator.clipboard.writeText(lines.join('\n'));document.getElementById('hciStatus').textContent='Präfixliste kopiert. Die Daten können unvollständig sein. Nicht öffentlich posten.'}
+ catch(e){document.getElementById('hciStatus').textContent='Kopieren fehlgeschlagen: '+e.message}
+};
+
+render();
+</script></body></html>
